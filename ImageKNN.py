@@ -1,4 +1,5 @@
 import ImageSeg
+import logging
 from PIL import Image
 from sklearn.neighbors import NearestNeighbors
 import numpy as np
@@ -32,7 +33,8 @@ def NN_nbrs(images,window_size):
 
 	#print len(vectors)
 	X = np.array(vectors)
-	#LOG("np array created")
+	logging.debug("np array created")
+        logging.debug("array dims: %s" % str(X.shape))
 	#print len(X)
 	nbrs = NearestNeighbors(n_neighbors=1).fit(X)
 	#LOG("nn learned")
@@ -43,14 +45,17 @@ def replace_windows_with_nearest_neighbors(im, window_size,nbrs, fout_name):
 	windows = ImageSeg.window_segmentation(im, window_size)
 	im_width, im_height = im.size
 	window_width , window_height = window_size
-	for offset in windows:
+        l =  len(windows)
+	for i, offset in enumerate(windows):
 		window_to_replace = windows[offset]
 		vector_to_match = window_to_vector(window_to_replace)
-		distances,indices = nbrs.kneighbors(np.array(vector_to_match))
+		distances,indices = nbrs.kneighbors(np.array([vector_to_match]))
 		window_replacement_vector = nbrs._fit_X[indices[0]][0]
 		#print window_replacement_vector
 		window_pixels = vector_to_window(window_replacement_vector,window_size)
 		ImageSeg.replace_window(pixels,offset,window_pixels)
+                if i % 1000 == 1:
+                    logging.info("progress %d/%d" % (i, l))
 
 
 	im.save(fout_name)
@@ -69,12 +74,9 @@ def redo_picture(training_fnames, input_fname, output_fname, window_size):
 	replace_windows_with_nearest_neighbors(im,window_size,nbrs,output_fname)
 
 
-def test():
-	training = 'moon.jpg'
-	input_f = 'akamai.jpg'
-	output_f = 'akamai-moon.jpg'
+def retile(training_f, input_f, output_f):
 	window_size = (10,10)
-	redo_picture([training], input_f, output_f, window_size)
+	redo_picture([training_f], input_f, output_f, window_size)
 
 def animated_gif():
 	training = 'fractal.jpg'
@@ -97,5 +99,10 @@ def animated_gif():
 		#print fcount
 
 if __name__=='__main__':
-	#test()
-	animated_gif()
+    import sys
+    t_f = sys.argv[1]
+    i_f = sys.argv[2]
+    o_f = sys.argv[3]
+
+    retile(t_f, i_f, o_f)
+    #animated_gif()
